@@ -7,12 +7,13 @@ import threading
 from pathlib import Path
 
 
-ROOT = Path(__file__).resolve().parent.parent
-DATA = ROOT / "data"
+from ai_help.runtime import ROOT, data_directory
+
+DATA = data_directory()
 CONFIG = DATA / "config.json"
 DEFAULTS = {"backend": "codex", "codex_path": "codex", "claude_path": "claude",
             "codex_model": "", "claude_model": "", "mode": "workspace-write",
-            "nickname": "小爱", "forbid_modification": False}
+            "nickname": "小爱", "pet_size": "中", "forbid_modification": False}
 
 
 class Conversation:
@@ -58,7 +59,7 @@ def load_config():
 
 
 def save_config(config):
-    DATA.mkdir(exist_ok=True)
+    DATA.mkdir(parents=True, exist_ok=True)
     temporary = CONFIG.with_suffix(".tmp")
     temporary.write_text(json.dumps(config, ensure_ascii=False, indent=2), encoding="utf-8")
     temporary.replace(CONFIG)

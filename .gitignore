@@ -5,3 +5,7 @@ data/
 .env.*
 !.env.example
 .tools/
+
+build/
+dist/
+*.spec

@@ -8,6 +8,7 @@ from tkinter import ttk, messagebox
 
 from ai_help.core import DATA, Conversation, Runner, load_config
 from ai_help.pet import Pet
+from ai_help.shell import apply_icon
 from ai_help.settings import Settings
 from ai_help.companion import CompanionUI
 
@@ -25,13 +26,6 @@ def theme(root):
 
 
 class ChatController:
-    def append(self, text, tag='pet'):
-        self.output.configure(state="normal")
-        label = '你' if tag == 'user' else self.nickname if tag == 'pet' else ''
-        self.output.insert("end", (label + '\n' if label else '') + text + "\n\n", tag)
-        self.output.see("end")
-        self.output.configure(state="disabled")
-
     def start(self):
         if self.busy:
             return
@@ -43,9 +37,7 @@ class ChatController:
         self.busy, self.failed = True, False
         self.saw_answer = False
         self.history = [("prompt", prompt)]
-        turn = sum(message["role"] == "user" for message in self.conversation.messages)
         self.append(prompt, 'user')
-        self.append('第 ' + str(turn) + ' 轮', 'note')
         self.prompt.delete("1.0", "end")
         self.start_button.configure(state="disabled")
         self.cancel_button.configure(state="normal")
@@ -62,11 +54,17 @@ class ChatController:
         if self.busy:
             return
         self.conversation.reset()
+        self.follow_tail = True
+        self.scroll_remainder = 0.0
+        for frame in self.message_frames:
+            frame.destroy()
+        self.message_frames.clear()
+        self.message_bodies.clear()
         self.logs.clear()
         self.output.configure(state="normal")
         self.output.delete("1.0", "end")
         self.output.configure(state="disabled")
-        self.status.set("新的一页，想聊些什么？")
+        self.status.set('')
         if hasattr(self, 'open_input'):
             self.open_input()
         else:
@@ -95,7 +93,7 @@ class ChatController:
                     self.pet.thinking = False
                     self.settings_button.configure(state="normal")
                     self.new_button.configure(state="normal")
-                    DATA.mkdir(exist_ok=True)
+                    DATA.mkdir(parents=True, exist_ok=True)
                     name = datetime.now().strftime("%Y%m%d-%H%M%S-%f") + ".json"
                     (DATA / name).write_text(json.dumps({"target": str(self.target), "backend": self.config['backend'], "session": self.conversation.session, "events": self.history}, ensure_ascii=False, indent=2), encoding="utf-8")
                 elif kind == "result":
@@ -122,6 +120,7 @@ class ChatController:
     def show_logs(self):
         window = tk.Toplevel(self.root)
         window.title(self.nickname + '的工作过程')
+        apply_icon(window)
         window.geometry('640x400')
         output = tk.Text(window, wrap='word', font=('Consolas', 10), padx=15, pady=15)
         output.pack(fill='both', expand=True)
@@ -140,8 +139,27 @@ class ChatController:
             return
         if self.settings_window and self.settings_window.winfo_exists():
             self.settings_window.lift()
+            self.settings_window.focus_force()
             return
+        restore_bubble = self.bubble.state() != 'withdrawn'
+        self.hide_tooltip()
+        self.bubble.withdraw()
         self.settings_window = tk.Toplevel(self.root)
+        settings_window = self.settings_window
+
+        def restore_after_settings(event):
+            if event.widget != settings_window:
+                return
+            if self.settings_window == settings_window:
+                self.settings_window = None
+            if restore_bubble and self.root.winfo_exists() and self.bubble.winfo_exists():
+                self.position_bubble()
+                self.bubble.deiconify()
+                self.bubble.lift()
+                if self.editing:
+                    self.prompt.focus_force()
+
+        settings_window.bind('<Destroy>', restore_after_settings, add='+')
         self.settings_window.attributes('-topmost', True)
         self.settings_window.transient(self.root)
         self.settings_window.grab_set()
@@ -149,11 +167,15 @@ class ChatController:
             self.config = dict(config)
             self.nickname = config['nickname']
             self.root.title('召唤' + self.nickname)
-            self.name_label.configure(text=self.nickname)
+            self.name_label.configure(text='与' + self.nickname + '对话')
+            self.bubble.title('与' + self.nickname + '对话')
+            self.apply_size()
             self.forbid.set(config['forbid_modification'])
             self.allow.set(not self.forbid.get())
             self.start_button.configure(text='告诉' + self.nickname + ' ↗')
         Settings(self.settings_window, saved)
+        settings_window.lift()
+        settings_window.focus_force()
 
     def close(self):
         if self.busy:
@@ -169,11 +191,54 @@ class CompanionApp(CompanionUI, ChatController):
         self.initialize(root, target, load_config(), Runner())
 
 
+def check_installation(report):
+    """Exercise the installed Tk UI without calling a backend or saving settings."""
+    from ai_help.core import CONFIG
+    from ai_help.shell import ICON
+    root = tk.Tk()
+    try:
+        app = CompanionApp(root, Path.cwd())
+        dialog = tk.Toplevel(root)
+        settings = Settings(dialog)
+        if settings.model_job:
+            dialog.after_cancel(settings.model_job)
+            settings.model_job = None
+        dialog.withdraw()
+        def finish():
+            _, program, browser, _, _ = settings.backend_widgets[settings.values['backend'].get()]
+            report.write_text(json.dumps({
+                'ok': True, 'title': app.bubble.title(), 'icon_exists': ICON.is_file(),
+                'config': str(CONFIG), 'cat_width': root.winfo_width(),
+                'greeting': app.message_bodies[0].get('1.0', 'end-1c'),
+                'settings_rounded': bool(dialog.overrideredirect()),
+                'settings_backend': settings.values['backend'].get(),
+                'model_dropdown': settings.model_widgets[settings.values['backend'].get()].winfo_class(),
+                'browse_matches_input_height': browser.winfo_height() == program.winfo_height(),
+            }, ensure_ascii=False, indent=2), encoding='utf-8')
+            root.destroy()
+        root.after(300, finish)
+        root.mainloop()
+    finally:
+        try:
+            root.destroy()
+        except tk.TclError:
+            pass
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--target", default=str(Path.cwd()))
     parser.add_argument('--settings', action='store_true')
+    parser.add_argument('--refresh-menu', action='store_true', help='刷新已注册的右键菜单')
+    parser.add_argument('--check-installation', metavar='REPORT', help='检查打包运行环境并写入 JSON 报告')
     args = parser.parse_args()
+    if args.refresh_menu:
+        from ai_help.shell import refresh_menu
+        refresh_menu(load_config()['nickname'])
+        return
+    if args.check_installation:
+        check_installation(Path(args.check_installation))
+        return
     target = Path(args.target)
     root = tk.Tk()
     theme(root)

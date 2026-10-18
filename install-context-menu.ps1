@@ -34,6 +34,8 @@ if ($Uninstall) {
 $python = (Get-Command python.exe -ErrorAction Stop).Source
 $pythonw = Join-Path (Split-Path -Parent $python) 'pythonw.exe'
 if (-not (Test-Path -LiteralPath $pythonw)) { throw 'pythonw.exe not found. Install Python with Tkinter first.' }
+$icon = Join-Path $PSScriptRoot 'assets/cat.ico'
+if (-not (Test-Path -LiteralPath $icon)) { $icon = $pythonw }
 $app = Join-Path $PSScriptRoot 'app.py'
 foreach ($key in $keys) {
     $placeholder = if ($key -like '*Background*') { '%V' } else { '%1' }
@@ -41,7 +43,7 @@ foreach ($key in $keys) {
     Set-Item -LiteralPath $key -Value 'AI Help...'
     New-ItemProperty -LiteralPath $key -Name 'MUIVerb' -Value 'AI Help...' -Force | Out-Null
     New-ItemProperty -LiteralPath $key -Name 'Position' -Value 'Top' -Force | Out-Null
-    New-ItemProperty -LiteralPath $key -Name 'Icon' -Value $pythonw -Force | Out-Null
+    New-ItemProperty -LiteralPath $key -Name 'Icon' -Value $icon -Force | Out-Null
     if ($key -like '*Background*') {
         Remove-ItemProperty -LiteralPath $key -Name 'MultiSelectModel' -ErrorAction SilentlyContinue
     } else {

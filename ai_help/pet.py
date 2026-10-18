@@ -10,8 +10,12 @@ class Pet(tk.Canvas):
         self.after(80, self.animate)
 
     def animate(self):
-        self.delete('all')
         self.frame += 1
+        self.draw()
+        self.after(120, self.animate)
+
+    def draw(self):
+        self.delete('all')
         lift = 2 if self.thinking and self.frame % 8 < 4 else 0
         self.create_oval(17, 85, 81, 96, fill='#E7E0F5', outline='')
         for points in ((18, 41, 18, 11, 39, 27), (57, 27, 77, 11, 79, 42)):
@@ -26,7 +30,6 @@ class Pet(tk.Canvas):
                 self.create_oval(x-3, 47-lift, x+3, 55-lift, fill='#493E64', outline='')
         self.create_line(45, 62-lift, 49, 65-lift, 53, 62-lift, fill='#493E64', smooth=True, width=2)
         if self.thinking:
-            self.create_text(84, 14, text='·' * (self.frame // 4 % 3 + 1), fill='#8D79C3', font=('Segoe UI', 15, 'bold'))
+            self.create_text(84, 14, text='·' * (self.frame // 4 % 3 + 1), fill='#8D79C3', font=('Segoe UI', max(1, round(15*self.drawing_scale)), 'bold'))
         if self.drawing_scale != 1:
             self.scale('all', 0, 0, self.drawing_scale, self.drawing_scale)
-        self.after(120, self.animate)
