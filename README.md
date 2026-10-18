@@ -34,7 +34,7 @@ CatHelper 提供桌面入口和对话界面，实际 AI 能力由你选择的 CL
 
 ### 1. 安装
 
-从 [Releases](https://github.com/wuhuaiwei/CatHelper/releases/latest) 下载 `CatAssistant-Setup-1.1.0-x64.exe`，双击按中文向导安装。
+从 [Releases](https://github.com/wuhuaiwei/CatHelper/releases/latest) 下载 `CatAssistant-Setup-1.2.0-x64.exe`，双击按中文向导安装。
 
 安装向导可勾选桌面快捷方式和资源管理器右键菜单。默认安装到当前用户的 `%LOCALAPPDATA%\Programs\CatAssistant`，无需管理员权限。安装包包含 Python、Tkinter 和猫咪图标。
 
@@ -46,8 +46,8 @@ CatHelper 提供桌面入口和对话界面，实际 AI 能力由你选择的 CL
 
 1. 选择“默认 AI”。界面只显示该 AI 的程序与模型选项。
 2. 填写程序名（例如 `codex` / `claude`）或用“浏览”选择程序文件。
-3. 程序不为空时会自动查询模型。列表加载完成后，可选择模型或保持“默认（跟随 CLI）”。
-4. 设置昵称、伙伴图标大小和默认修改权限，然后保存。
+3. 点击“浏览”旁的“测试”，检查程序启动与模型接口。测试通过后刷新模型列表；测试失败会显示原因并提供官方安装、登录指引。
+4. 选择模型或保持“默认（跟随 CLI）”，设置昵称、伙伴图标大小和默认修改权限，然后保存。
 
 ![伙伴设置真实截图（示例配置）](docs/images/settings-screenshot.png)
 
@@ -90,6 +90,8 @@ CatHelper 提供桌面入口和对话界面，实际 AI 能力由你选择的 CL
 - 安装版配置与任务记录：`%LOCALAPPDATA%\CatAssistant\data`；源码版：项目的 `data/`。记录可能包含对话与文件内容。
 - 升级与卸载会保留安装版数据。本工具不存储 API 密钥，但会复用 CLI 自己保存的身份信息。
 
+点击“测试”不会发送 AI 对话请求。它检查 CLI 能否启动并返回模型，不等同于一次实际推理或账号额度检查。
+
 ## 常见问题
 
 **模型下拉框为什么是灰色？** 可能是程序为空、正在加载，或查询失败。将鼠标悬停在模型框上查看原因；确认 CLI 能启动且已登录，再重新选择 AI 或修改程序路径重试。失败时会保留原模型设置。
@@ -126,7 +128,7 @@ python -m pip install pyinstaller==6.11.1
 # 还需要 Inno Setup 6；默认自动寻找 .tools/inno/ISCC.exe 或系统安装位置
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_installer.ps1
 # 指定编译器或版本时：
-# .\scripts\build_installer.ps1 -Iscc 'C:\path\ISCC.exe' -Version '1.1.0'
+# .\scripts\build_installer.ps1 -Iscc 'C:\path\ISCC.exe' -Version '1.2.0'
 ```
 
 构建脚本先执行测试，再生成 `dist/CatAssistant/CatAssistant.exe`、安装器和 `dist/SHA256SUMS.txt`。`CatAssistant.exe` 需要同目录的 `_internal`，不能仅复制一个 EXE；普通用户直接使用安装器。

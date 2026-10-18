@@ -6,6 +6,88 @@ from ai_help.settings import Settings
 
 
 class SettingsTests(unittest.TestCase):
+    def test_manual_program_test_refreshes_cache_and_reports_success_or_failure(self):
+        root = tk.Tk()
+        root.withdraw()
+        with patch('ai_help.settings.load_config', return_value=dict(DEFAULTS)), \
+             patch('ai_help.settings.fetch_models', return_value=['new-model']) as fetch, \
+             patch('ai_help.settings.threading.Thread') as thread, \
+             patch('ai_help.settings.messagebox.showinfo') as success, \
+             patch.object(Settings, 'show_program_error') as failure:
+            try:
+                settings = Settings(tk.Toplevel(root))
+                settings.model_cache['codex', 'codex'] = ['cached-model']
+                settings.test_buttons['codex'].invoke()
+                self.assertEqual(str(settings.test_buttons['codex']['state']), 'disabled')
+                count = thread.call_count
+                settings.test_program('codex')
+                self.assertEqual(thread.call_count, count)
+                thread.call_args.kwargs['target']()
+                settings.window.after_cancel(settings.poll_job)
+                settings.poll_models()
+                fetch.assert_called_once()
+                success.assert_called_once()
+                failure.assert_not_called()
+                self.assertEqual(settings.model_cache['codex', 'codex'], ['new-model'])
+                self.assertEqual(str(settings.test_buttons['codex']['state']), 'normal')
+                fetch.side_effect = RuntimeError('login required')
+                settings.test_program('codex')
+                thread.call_args.kwargs['target']()
+                settings.window.after_cancel(settings.poll_job)
+                settings.poll_models()
+                failure.assert_called_once_with('codex', 'login required')
+                self.assertEqual(str(settings.model_widgets['codex']['state']), 'disabled')
+                self.assertEqual(str(settings.test_buttons['codex']['state']), 'normal')
+            finally:
+                root.destroy()
+
+    def test_program_test_empty_path_and_stale_results(self):
+        root = tk.Tk()
+        root.withdraw()
+        with patch('ai_help.settings.load_config', return_value=dict(DEFAULTS, claude_path='')), \
+             patch('ai_help.settings.threading.Thread') as thread, \
+             patch('ai_help.settings.messagebox.showinfo') as success, \
+             patch.object(Settings, 'show_program_error') as failure:
+            try:
+                settings = Settings(tk.Toplevel(root))
+                settings.values['backend'].set('claude')
+                settings.test_program('claude')
+                failure.assert_called_once()
+                thread.assert_not_called()
+                failure.reset_mock()
+                settings.values['claude_path'].set('claude')
+                settings.test_program('claude')
+                generation = settings.query_generation
+                settings.values['backend'].set('codex')
+                settings.model_results.put((generation, 'claude', [], 'late failure'))
+                settings.window.after_cancel(settings.poll_job)
+                settings.poll_models()
+                success.assert_not_called()
+                failure.assert_not_called()
+                self.assertEqual(str(settings.test_buttons['claude']['state']), 'normal')
+            finally:
+                root.destroy()
+
+    def test_failure_dialog_opens_correct_official_guide_and_restores_grab(self):
+        from ai_help.program_check import ProgramErrorDialog, OFFICIAL_GUIDES
+        root = tk.Tk()
+        with patch('ai_help.settings.load_config', return_value=dict(DEFAULTS)), \
+             patch('ai_help.program_check.webbrowser.open') as browser:
+            try:
+                settings = Settings(tk.Toplevel(root))
+                settings.window.grab_set()
+                for backend in ('codex', 'claude'):
+                    dialog = ProgramErrorDialog(settings.window, backend, '找不到程序')
+                    browser.assert_not_called()
+                    self.assertIs(settings.window.grab_current(), dialog.window)
+                    dialog.guide_button.invoke()
+                    browser.assert_called_once_with(OFFICIAL_GUIDES[backend])
+                    browser.reset_mock()
+                    dialog.window.destroy()
+                    self.assertIs(settings.window.grab_current(), settings.window)
+            finally:
+                root.destroy()
+
     def test_custom_window_drag_resize_and_close(self):
         root = tk.Tk()
         root.withdraw()
@@ -94,7 +176,8 @@ class SettingsTests(unittest.TestCase):
                 window.update()
                 _, entry, holder, _, _ = settings.backend_widgets['codex']
                 button = holder.winfo_children()[0]
-                self.assertEqual(button.winfo_height(), entry.winfo_height())
+                for action in holder.winfo_children():
+                    self.assertEqual(action.winfo_height(), entry.winfo_height())
                 self.assertGreater(button.winfo_width(), 30)
                 labels = [child.cget('text') for child in entry.master.winfo_children()
                           if child.winfo_class() == 'TLabel']

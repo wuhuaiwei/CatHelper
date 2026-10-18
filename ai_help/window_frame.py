@@ -9,7 +9,7 @@ from ai_help.settings_style import BG, MUTED
 
 
 class SettingsChrome(tk.Canvas):
-    def __init__(self, window):
+    def __init__(self, window, title='伙伴设置'):
         super().__init__(window, bg=BG, highlightthickness=0)
         self.window = window
         self.drag_origin = self.resize_origin = None
@@ -20,7 +20,7 @@ class SettingsChrome(tk.Canvas):
         self.bind('<Configure>', self.layout)
         self.titlebar = tk.Frame(self.body, bg=BG)
         self.titlebar.pack(fill='x', pady=(0, 8))
-        caption = tk.Label(self.titlebar, text='伙伴设置', bg=BG, fg=MUTED,
+        caption = tk.Label(self.titlebar, text=title, bg=BG, fg=MUTED,
                            font=('Microsoft YaHei UI', 9))
         caption.pack(side='left')
         self.close_button = ttk.Button(self.titlebar, text='×', width=2, padding=0,

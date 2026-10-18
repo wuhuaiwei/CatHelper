@@ -4,7 +4,7 @@ from pathlib import Path
 import queue
 import sys
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, messagebox
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -51,6 +51,8 @@ def main():
         # The demo cannot persist settings or refresh Explorer registration.
         settings.chrome.close_button.configure(command=root.destroy)
         settings.start_model_query = lambda: None
+        settings.test_program = lambda backend: messagebox.showinfo(
+            '示例预览', '此窗口使用固定演示数据。请在正式设置窗口中测试实际 CLI。', parent=root)
         for child in settings.chrome.body.winfo_children():
             for button in child.winfo_children():
                 if isinstance(button, ttk.Button):

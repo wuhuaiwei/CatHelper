@@ -7,6 +7,7 @@ from ai_help.models import fetch_models
 from ai_help.shell import refresh_menu, apply_icon
 from ai_help.settings_style import BG, INK, MUTED, FONT, SettingsCard, setup_styles, draw_cat
 from ai_help.window_frame import RoundedWindow, SettingsChrome
+from ai_help.program_check import ProgramErrorDialog, BACKEND_NAMES
 
 
 class HoverTip:
@@ -77,6 +78,8 @@ class Settings:
         self.model_widgets, self.model_display, self.model_tips = {}, {}, {}
         self.model_results = queue.Queue()
         self.model_cache = {}
+        self.test_buttons = {}
+        self.manual_test = None
         self.model_job = self.query_cancel = None
         self.query_generation = 0
         self.closed = False
@@ -114,11 +117,18 @@ class Settings:
                     if path:
                         variable.set(path)
                 # Anchor the button to the input's actual height, independent of theme/DPI.
-                holder = tk.Frame(frame, bg='white', width=font.Font(window, font=FONT).measure('浏览') + 28, height=1)
+                button_width = font.Font(window, font=FONT).measure('测试中') + 20
+                holder = tk.Frame(frame, bg='white', width=button_width*2+8, height=1)
                 holder.grid(row=index, column=2, sticky='ew', padx=(8, 0))
                 button = ttk.Button(holder, text='浏览', command=browse, padding=(8, 0),
                                     style='Companion.Soft.TButton', cursor='hand2')
-                button.place(relwidth=1, relheight=1)
+                button.place(x=0, width=button_width, relheight=1)
+                backend = key.split('_')[0]
+                test = ttk.Button(holder, text='测试', command=lambda b=backend: self.test_program(b),
+                                  padding=(4, 0), style='Companion.Soft.TButton', cursor='hand2')
+                test.place(x=button_width+8, width=button_width, relheight=1)
+                self.test_buttons[backend] = test
+                self.tips.append(HoverTip(test, '测试程序启动和模型接口，不发送 AI 对话请求。'))
                 widget.bind('<Configure>', lambda event, h=holder: h.configure(height=event.height), add='+')
                 self.tips.append(HoverTip(widget, '程序可填名称或完整路径；使用现有 CLI 登录状态。'))
                 row_widgets.append(holder)
@@ -159,6 +169,9 @@ class Settings:
     def schedule_models(self, *_):
         if self.closed:
             return
+        self.manual_test = None
+        for button in self.test_buttons.values():
+            button.configure(text='测试', state='normal')
         if self.model_job:
             self.window.after_cancel(self.model_job)
             self.model_job = None
@@ -173,6 +186,26 @@ class Settings:
         if program:
             self.model_tips[backend].text = '正在获取模型列表…'
             self.model_job = self.window.after(500, self.start_model_query)
+
+    def test_program(self, backend):
+        if self.manual_test or self.closed or backend != self.values['backend'].get():
+            return
+        self.schedule_models()
+        program = self.values[backend + '_path'].get().strip()
+        if not program:
+            self.show_program_error(backend, '尚未填写程序名称或路径。')
+            return
+        if self.model_job:
+            self.window.after_cancel(self.model_job)
+            self.model_job = None
+        # A manual test must really query the CLI rather than reusing cached data.
+        self.model_cache.pop((backend, program), None)
+        self.manual_test = (self.query_generation, backend)
+        self.test_buttons[backend].configure(text='测试中', state='disabled')
+        self.start_model_query()
+
+    def show_program_error(self, backend, error):
+        self.test_dialog = ProgramErrorDialog(self.window, backend, error)
 
     def start_model_query(self):
         self.model_job = None
@@ -197,6 +230,10 @@ class Settings:
             generation, backend, models, error = self.model_results.get_nowait()
             if generation != self.query_generation:
                 continue
+            manual = self.manual_test == (generation, backend)
+            if manual:
+                self.manual_test = None
+                self.test_buttons[backend].configure(text='测试', state='normal')
             tip = self.model_tips[backend]
             if error:
                 tip.text = '获取模型失败：' + error + '\n重新选择 AI 或修改程序路径可重试；原有模型设置会保留。'
@@ -205,6 +242,13 @@ class Settings:
                 self.model_cache[backend, program] = models
                 self.model_widgets[backend].configure(values=['默认（跟随 CLI）'] + models, state='readonly')
                 tip.text = '选择模型；“默认”使用 CLI 的默认模型。'
+            if manual:
+                if error:
+                    self.show_program_error(backend, error)
+                else:
+                    messagebox.showinfo('测试通过',
+                                        f'{BACKEND_NAMES[backend]} 已成功启动，并获取 {len(models)} 个模型。\n'
+                                        '模型下拉框已更新，本次测试没有发送 AI 对话请求。', parent=self.window)
         if not self.closed:
             self.poll_job = self.window.after(100, self.poll_models)
 

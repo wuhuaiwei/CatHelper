@@ -8,8 +8,30 @@ import subprocess
 import tempfile
 import threading
 import time
+import os
+import shutil
+from collections import deque
+from contextlib import contextmanager
 
 from ai_help.core import resolve_program
+
+
+@contextmanager
+def model_directory():
+    directory = tempfile.mkdtemp(prefix='companion-models-')
+    try:
+        yield directory
+    finally:
+        # Python 3.9 TemporaryDirectory can recurse on a locked Windows cwd.
+        # A transient cleanup lock must not turn a valid model response into failure.
+        for attempt in range(3):
+            try:
+                shutil.rmtree(directory)
+                break
+            except FileNotFoundError:
+                break
+            except OSError:
+                time.sleep(0.05 * (attempt + 1))
 
 
 def fetch_models(backend, program, cancel=None, timeout=20):
@@ -25,12 +47,21 @@ def fetch_models(backend, program, cancel=None, timeout=20):
                     '--strict-mcp-config', '--mcp-config', '{"mcpServers":{}}']
     else:
         raise ValueError('未知 AI 类型')
-    with tempfile.TemporaryDirectory(prefix='companion-models-') as directory:
+    with model_directory() as directory:
         process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                   stderr=subprocess.DEVNULL, text=True, encoding='utf-8',
+                                   stderr=subprocess.PIPE, text=True, encoding='utf-8',
                                    errors='replace', cwd=directory,
                                    creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
         messages = queue.Queue()
+        diagnostics = deque(maxlen=6)
+
+        def read_errors():
+            for line in process.stderr:
+                if line.strip():
+                    diagnostics.append(line.strip()[:400])
+
+        error_reader = threading.Thread(target=read_errors, daemon=True)
+        error_reader.start()
 
         def read_output():
             try:
@@ -60,12 +91,15 @@ def fetch_models(backend, program, cancel=None, timeout=20):
                 except queue.Empty:
                     continue
                 if message is None:
-                    raise RuntimeError('程序未返回模型列表，请检查版本和登录状态。')
+                    error_reader.join(timeout=0.2)
+                    detail = '\n'.join(diagnostics)
+                    raise RuntimeError('程序未返回模型列表，请检查版本和登录状态。' +
+                                       ('\n' + detail if detail else ''))
                 if not isinstance(message, dict):
                     continue
                 if backend == 'codex' and message.get('id') == request_id:
                     if 'error' in message:
-                        raise RuntimeError('模型接口调用失败。')
+                        raise RuntimeError('模型接口调用失败：' + str(message['error'].get('message', '未知错误')))
                     return message['result']
                 if backend == 'claude' and message.get('type') == 'control_response':
                     response = message.get('response', {})
@@ -78,7 +112,7 @@ def fetch_models(backend, program, cancel=None, timeout=20):
         try:
             if backend == 'codex':
                 send({'id': 1, 'method': 'initialize', 'params': {
-                    'clientInfo': {'name': 'cat_assistant', 'version': '1.0.0'}}})
+                    'clientInfo': {'name': 'cat_assistant', 'version': '1.2.0'}}})
                 receive(1)
                 send({'method': 'initialized', 'params': {}})
                 models, cursor, request_id = [], None, 2
@@ -102,8 +136,18 @@ def fetch_models(backend, program, cancel=None, timeout=20):
             return list(dict.fromkeys(models))
         finally:
             if process.poll() is None:
-                process.kill()
+                if os.name == 'nt':
+                    try:
+                        subprocess.run(['taskkill', '/PID', str(process.pid), '/T', '/F'],
+                                       capture_output=True, timeout=5,
+                                       creationflags=subprocess.CREATE_NO_WINDOW)
+                    except (OSError, subprocess.TimeoutExpired):
+                        pass
+                if process.poll() is None:
+                    process.kill()
             process.wait()
             reader.join(timeout=2)
+            error_reader.join(timeout=2)
             process.stdin.close()
             process.stdout.close()
+            process.stderr.close()

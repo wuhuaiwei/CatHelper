@@ -57,14 +57,16 @@ def main():
             (549, 'Codex 模型', '默认（跟随 CLI）', True)]
     for y, label, value, combo in rows:
         path = label.endswith('程序')
-        parts += [text(70, y, label, 16), rect(222, y-26, 286 if path else 376, 38,
+        parts += [text(70, y, label, 16), rect(222, y-26, 200 if path else 376, 38,
                                                   '#FCFAFF', '#E8E0F0', 10),
                   text(236, y, value, 16)]
         if combo:
             parts.append(text(574, y, '⌄', 19, '#9D82BE'))
         if path:
-            parts += [rect(518, y-26, 80, 38, '#F1EAFB', radius=10),
-                      text(542, y, '浏览', 16, '#7959A6')]
+            parts += [rect(432, y-26, 78, 38, '#F1EAFB', radius=10),
+                      text(454, y, '浏览', 16, '#7959A6'),
+                      rect(520, y-26, 78, 38, '#F1EAFB', radius=10),
+                      text(542, y, '测试', 16, '#7959A6')]
     parts += [rect(70, 576, 15, 15, '#FCFAFF', '#C4B0DC', 4),
               text(95, 590, '默认禁止修改', 15),
               text(53, 657, '每次召唤，都更懂你一点。', 13, '#93849F'),
