@@ -6,7 +6,18 @@
 
 [下载最新版](https://github.com/wuhuaiwei/CatHelper/releases/latest) · [详细使用指南](docs/USER_GUIDE.md) · [更新记录](docs/CHANGELOG.md)
 
-![CatHelper 操作流程示意图](docs/images/workflow.svg)
+## 右键一下，伙伴就来到当前目录
+
+**① 在文件、文件夹或目录空白处右键，直接召唤。** 不需要先打开终端、复制路径，再切换到另一个聊天窗口。
+
+![资源管理器真实右键菜单：召唤小喵](docs/images/context-menu-screenshot.png)
+
+**② 小猫出现，自动带上当前目标。** 点击小猫展开输入框，写下需求、按 Enter 发送，接着可以继续追问。
+
+![召唤后的小猫与对话气泡，已识别示例项目目录](docs/images/summon-screenshot.png)
+
+> 以上均为真实界面截图，使用“示例项目”和演示输入，没有发送 AI 请求。菜单中的“召唤小喵”随自定义伙伴昵称变化，默认名称为“召唤小爱”。Windows 11 可在“显示更多选项”中找到该入口。
+
 
 ## 它能做什么
 
