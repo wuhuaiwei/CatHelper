@@ -38,9 +38,9 @@ CatHelper 提供桌面入口和对话界面，实际 AI 能力由你选择的 CL
 3. 程序不为空时会自动查询模型。列表加载完成后，可选择模型或保持“默认（跟随 CLI）”。
 4. 设置昵称、伙伴图标大小和默认修改权限，然后保存。
 
-![伙伴设置界面示意图](docs/images/settings.svg)
+![伙伴设置真实截图（示例配置）](docs/images/settings-screenshot.png)
 
-> 本仓库图片为依据当前界面绘制的操作示意图，包含示例内容，并非实机截图。也可运行 `python scripts/preview_docs.py settings` 查看不读取个人配置的真实界面演示。
+> 上图为真实设置窗口截图，使用固定示例配置；模型列表为演示数据。流程图与设置说明图为操作示意。也可运行 `python scripts/preview_docs.py settings` 查看不读取个人配置的真实界面演示。
 
 ### 3. 召唤并对话
 
