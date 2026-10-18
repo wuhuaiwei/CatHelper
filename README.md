@@ -34,7 +34,7 @@ CatHelper 提供桌面入口和对话界面，实际 AI 能力由你选择的 CL
 
 ### 1. 安装
 
-从 [Releases](https://github.com/wuhuaiwei/CatHelper/releases/latest) 下载 `CatAssistant-Setup-1.2.0-x64.exe`，双击按中文向导安装。
+从 [Releases](https://github.com/wuhuaiwei/CatHelper/releases/latest) 下载 `CatAssistant-Setup-1.2.1-x64.exe`，双击按中文向导安装。
 
 安装向导可勾选桌面快捷方式和资源管理器右键菜单。默认安装到当前用户的 `%LOCALAPPDATA%\Programs\CatAssistant`，无需管理员权限。安装包包含 Python、Tkinter 和猫咪图标。
 
@@ -82,7 +82,7 @@ CatHelper 提供桌面入口和对话界面，实际 AI 能力由你选择的 CL
 
 ## 修改权限与数据
 
-小猫菜单里的“允许修改”默认勾选，只影响当前召唤。可在设置中勾选“默认禁止修改”，让后续召唤从只读模式开始。
+小猫菜单里的“允许修改”默认勾选，只影响当前召唤。设置中的“权限设置”下拉框可选择“默认允许修改文件”或“默认禁止修改文件”，决定后续召唤的默认权限。
 
 - Codex 使用 `read-only` 或 `workspace-write`；文件目标的工作目录为其所在文件夹，写入模式可以修改整个工作目录。
 - Claude 分析时开放 Read / Glob / Grep，允许修改后再开放 Edit / Write，不开放 Bash。工具许可不是操作系统目录隔离，读取仍可能涉及工作目录之外。
@@ -128,7 +128,7 @@ python -m pip install pyinstaller==6.11.1
 # 还需要 Inno Setup 6；默认自动寻找 .tools/inno/ISCC.exe 或系统安装位置
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build_installer.ps1
 # 指定编译器或版本时：
-# .\scripts\build_installer.ps1 -Iscc 'C:\path\ISCC.exe' -Version '1.2.0'
+# .\scripts\build_installer.ps1 -Iscc 'C:\path\ISCC.exe' -Version '1.2.1'
 ```
 
 构建脚本先执行测试，再生成 `dist/CatAssistant/CatAssistant.exe`、安装器和 `dist/SHA256SUMS.txt`。`CatAssistant.exe` 需要同目录的 `_internal`，不能仅复制一个 EXE；普通用户直接使用安装器。

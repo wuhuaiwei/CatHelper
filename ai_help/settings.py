@@ -139,11 +139,16 @@ class Settings:
         for backend in self.backend_widgets:
             self.values[backend + '_path'].trace_add('write', self.schedule_models)
         self.update_backend_fields()
-        self.forbid = tk.BooleanVar(value=self.config['forbid_modification'])
-        forbid = ttk.Checkbutton(intelligence.body, text='默认禁止修改', variable=self.forbid,
-                                 style='Companion.TCheckbutton', cursor='hand2')
-        forbid.grid(row=7, column=0, columnspan=3, sticky='w', pady=(12, 0))
-        self.tips.append(HoverTip(forbid, '修改范围为工作目录；停止不会撤销修改。'))
+        permission_label = tk.Label(intelligence.body, text='权限设置', bg='white', fg=INK, font=FONT)
+        permission_label.grid(row=7, column=0, sticky='w', pady=9)
+        self.permission = tk.StringVar(value='默认禁止修改文件' if self.config['forbid_modification']
+                                       else '默认允许修改文件')
+        self.permission_widget = ttk.Combobox(
+            intelligence.body, textvariable=self.permission,
+            values=['默认允许修改文件', '默认禁止修改文件'], state='readonly',
+            style='Companion.TCombobox', font=FONT)
+        self.permission_widget.grid(row=7, column=1, columnspan=2, sticky='ew', padx=(16, 0), pady=6)
+        self.tips.append(HoverTip(self.permission_widget, '影响下次召唤的默认权限；修改范围为工作目录，停止不会撤销修改。'))
         footer = tk.Frame(content, bg=BG)
         footer.pack(side='bottom', fill='x', pady=(18, 0))
         tk.Label(footer, text='每次召唤，都更懂你一点。', bg=BG, fg=MUTED,
@@ -272,8 +277,9 @@ class Settings:
             messagebox.showerror('程序路径', '程序名称或路径不能为空。', parent=self.window)
             return
         self.config.update(updates)
-        self.config['forbid_modification'] = self.forbid.get()
-        self.config['mode'] = 'read-only' if self.forbid.get() else 'workspace-write'
+        forbid = self.permission.get() == '默认禁止修改文件'
+        self.config['forbid_modification'] = forbid
+        self.config['mode'] = 'read-only' if forbid else 'workspace-write'
         try:
             save_config(self.config)
             refresh_menu(nickname)

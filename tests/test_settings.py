@@ -6,6 +6,28 @@ from ai_help.settings import Settings
 
 
 class SettingsTests(unittest.TestCase):
+    def test_permission_dropdown_loads_existing_config_and_saves_write_access(self):
+        root = tk.Tk()
+        root.withdraw()
+        try:
+            for forbidden in (False, True):
+                with self.subTest(forbidden=forbidden), \
+                     patch('ai_help.settings.load_config', return_value=dict(DEFAULTS, forbid_modification=forbidden)), \
+                     patch('ai_help.settings.save_config') as save, \
+                     patch('ai_help.settings.refresh_menu'):
+                    settings = Settings(tk.Toplevel(root))
+                    self.assertEqual(str(settings.permission_widget['state']), 'readonly')
+                    self.assertEqual(tuple(settings.permission_widget['values']),
+                                     ('默认允许修改文件', '默认禁止修改文件'))
+                    self.assertEqual(settings.permission.get(), '默认禁止修改文件' if forbidden
+                                     else '默认允许修改文件')
+                    settings.permission.set('默认允许修改文件')
+                    settings.save()
+                    self.assertFalse(save.call_args.args[0]['forbid_modification'])
+                    self.assertEqual(save.call_args.args[0]['mode'], 'workspace-write')
+        finally:
+            root.destroy()
+
     def test_manual_program_test_refreshes_cache_and_reports_success_or_failure(self):
         root = tk.Tk()
         root.withdraw()
@@ -247,13 +269,14 @@ class SettingsTests(unittest.TestCase):
                 settings.values['nickname'].set('团子')
                 settings.values['backend'].set('claude')
                 settings.values['pet_size'].set('小')
-                settings.forbid.set(True)
+                settings.permission.set('默认禁止修改文件')
                 settings.save()
                 config = save.call_args.args[0]
                 self.assertEqual(config['pet_size'], '小')
                 self.assertEqual(config['nickname'], '团子')
                 self.assertEqual(config['backend'], 'claude')
                 self.assertEqual(config['mode'], 'read-only')
+                self.assertTrue(config['forbid_modification'])
                 menu.assert_called_once_with('团子')
             finally:
                 root.destroy()
